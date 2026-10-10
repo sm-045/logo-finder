@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Logo Finder</title>
+  <meta name="description" content="Find transparent company logos (original, dark and light) from Wikidata, Wikimedia Commons and Simple Icons.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https://www.google.com https://*.gstatic.com; connect-src https://www.wikidata.org https://commons.wikimedia.org https://en.wikipedia.org https://upload.wikimedia.org https://cdn.jsdelivr.net https://icon.horse; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="js/theme-init.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.6/purify.min.js" integrity="sha384-JEyTNhjM6R1ElGoJns4U2Ln4ofPcqzSsynQkmEc/KGy6336qAZl70tDLufbkla+3" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="./">
+        <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="2" width="9" height="9" rx="2"/><circle cx="17.5" cy="6.5" r="4.5"/><path d="M6.5 13 11 21H2z"/><rect x="13" y="13" width="9" height="9" rx="4.5" class="brand-hollow"/></svg>
+        <span>Logo Finder</span>
+      </a>
+      <nav class="tabs" role="tablist" aria-label="Mode">
+        <button role="tab" id="tab-single" aria-controls="panel-single" aria-selected="true">Single</button>
+        <button role="tab" id="tab-batch" aria-controls="panel-batch" aria-selected="false">Batch</button>
+      </nav>
+      <button class="icon-btn" id="theme-toggle" type="button" aria-label="Toggle theme" title="Theme">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18V3z"/><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <section id="panel-single" role="tabpanel" aria-labelledby="tab-single">
+      <form id="search-form" class="search" autocomplete="off">
+        <label class="field grow">
+          <span>Company name</span>
+          <input id="q-name" name="name" type="text" placeholder="e.g. Spotify" enterkeyhint="search">
+        </label>
+        <label class="field">
+          <span>Website <em>(optional)</em></span>
+          <input id="q-domain" name="domain" type="text" placeholder="e.g. spotify.com" inputmode="url" autocapitalize="off" spellcheck="false">
+        </label>
+        <button class="btn primary" id="search-btn" type="submit">Find logos</button>
+      </form>
+
+      <div class="toolbar">
+        <div class="seg" role="radiogroup" aria-label="PNG size (long edge)">
+          <span class="seg-label">PNG size</span>
+          <label><input type="radio" name="png-size" value="512"><span>512</span></label>
+          <label><input type="radio" name="png-size" value="1024" checked><span>1024</span></label>
+          <label><input type="radio" name="png-size" value="2048"><span>2048</span></label>
+        </div>
+      </div>
+
+      <div id="status" class="status" role="status" aria-live="polite" hidden></div>
+      <div id="picker" class="picker" hidden></div>
+      <div id="company" class="company" hidden></div>
+
+      <section id="best-section" hidden>
+        <div class="section-head">
+          <h2>Best set</h2>
+          <label class="field inline" id="mode-wrap" hidden>
+            <span>Generated style</span>
+            <select id="mode-select"></select>
+          </label>
+        </div>
+        <div id="best" class="grid best"></div>
+      </section>
+
+      <section id="all-section" hidden>
+        <div class="section-head">
+          <h2>All results <span id="all-count" class="count"></span></h2>
+        </div>
+        <div id="all" class="grid"></div>
+      </section>
+
+      <section id="sources-section" hidden>
+        <h2>Sources checked</h2>
+        <ul id="sources" class="sources"></ul>
+      </section>
+
+      <div id="empty-hint" class="empty">
+        <p>Type a company name to find its official logo plus dark and light versions, with transparent backgrounds.</p>
+        <p class="muted">Add a website if there are several companies with the same name.</p>
+      </div>
+    </section>
+
+    <section id="panel-batch" role="tabpanel" aria-labelledby="tab-batch" hidden>
+      <div class="batch-input">
+        <label class="field">
+          <span>Companies, one per line. You can add a website after a comma: <code>Tata Steel, tatasteel.com</code></span>
+          <textarea id="batch-text" rows="8" placeholder="Spotify&#10;Stripe, stripe.com&#10;Nike"></textarea>
+        </label>
+        <div class="batch-actions">
+          <button class="btn primary" id="batch-run" type="button">Find all</button>
+          <button class="btn" id="batch-stop" type="button" hidden>Stop</button>
+          <button class="btn" id="batch-zip" type="button" disabled>Download all as ZIP</button>
+          <span class="muted small" id="batch-note">ZIP layout: <code>&lt;company&gt;/original|dark|light/</code> with SVG + PNG (size from the Single tab setting: <b id="batch-size">1024</b> px).</span>
+        </div>
+      </div>
+      <div id="batch-status" class="status" role="status" aria-live="polite" hidden></div>
+      <ol id="batch-list" class="batch-list"></ol>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>Logos are trademarks of their respective owners. Check each file's licence and the owner's brand guidelines before use.</p>
+    <p class="muted">Data: <a href="https://www.wikidata.org" target="_blank" rel="noopener">Wikidata</a> · <a href="https://commons.wikimedia.org" target="_blank" rel="noopener">Wikimedia Commons</a> · <a href="https://simpleicons.org" target="_blank" rel="noopener">Simple Icons</a> · site icons via <a href="https://icon.horse" target="_blank" rel="noopener">icon.horse</a>. Everything runs in your browser.</p>
+  </footer>
+
+  <template id="card-tpl">
+    <article class="card">
+      <header class="card-head">
+        <h3 class="card-title"></h3>
+        <div class="badges"></div>
+      </header>
+      <div class="previews">
+        <div class="tile bg-checker" title="Transparent"><img alt=""></div>
+        <div class="tile bg-black" title="On black"><img alt=""></div>
+        <div class="tile bg-white" title="On white"><img alt=""></div>
+      </div>
+      <dl class="meta"></dl>
+      <div class="actions"></div>
+    </article>
+  </template>
+</body>
+</html>
