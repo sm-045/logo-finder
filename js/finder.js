@@ -289,9 +289,14 @@ export function choosePrimary(assets) {
 export async function makeGenerated(base, role, mode) {
   const color = role === 'dark' ? '#000000' : '#FFFFFF';
   const svgText = await buildRecoloredSvg(base, color, mode);
+  const displayUrl = svgBlobUrl(svgText);
+  let analysis = null;
+  try {
+    analysis = await analyze(displayUrl, base.width, base.height);
+  } catch { /* badge falls back to the source's result */ }
   return {
-    id: `${base.id}-${role}-gen`, generated: true, base, role, mode, color,
-    kind: base.kind, svgText, width: base.width, height: base.height, displayUrl: svgBlobUrl(svgText),
+    id: `${base.id}-${role}-gen`, generated: true, base, role, mode, color, analysis,
+    kind: base.kind, svgText, width: base.width, height: base.height, displayUrl,
     title: `${base.title} → ${role === 'dark' ? 'black' : 'white'}`, source: 'generated',
   };
 }
@@ -325,9 +330,11 @@ export async function buildBestSet(assets, overrides = {}, mode) {
       .sort((a, b) => pref(a) - pref(b))[0] || null;
   };
 
-  // A silhouette of an image with a solid background is just a filled rectangle, so don't generate one.
+  // A silhouette of an image with a solid background is just a filled rectangle, so only the
+  // luminance-based styles can work on those (e.g. keep the white artwork, drop the tile).
   const status = primary.analysis?.transparency.status;
-  const canGenerate = !primary.displayOnly && (status === 'ok' || status === 'unknown');
+  const canGenerate = !primary.displayOnly &&
+    (status === 'ok' || status === 'unknown' || (status === 'background' && recolorMode !== 'solid'));
   const out = { original: primary, mode: recolorMode, reason: null };
   for (const tone of ['dark', 'light']) {
     out[tone] = findReal(tone) || (canGenerate ? await makeGenerated(primary, tone, recolorMode) : null);
@@ -335,7 +342,7 @@ export async function buildBestSet(assets, overrides = {}, mode) {
   if (!canGenerate && (!out.dark || !out.light)) {
     out.reason = primary.displayOnly
       ? 'Can’t recolour a preview-only image.'
-      : 'Can’t generate this variant: the original has a solid background, so recolouring would give a filled rectangle. Pick another result with “Use as…”.';
+      : 'Can’t generate this variant: the original has a solid background, so a solid recolour would just be a filled rectangle. Try another “Generated style”, or pick another result with “Use as…”.';
   }
   return out;
 }

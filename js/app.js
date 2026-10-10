@@ -251,7 +251,7 @@ function badgesFor(a, role) {
   if (a.historical) b.push(['Historical', 'warn']);
   if (a.lowQuality) b.push(['Low quality', 'warn']);
   if (a.displayOnly) b.push(['Preview only', 'warn']);
-  const t = a.generated ? a.base.analysis?.transparency : a.analysis?.transparency;
+  const t = (a.generated && !a.analysis ? a.base.analysis : a.analysis)?.transparency;
   if (t) b.push([t.label, t.status === 'ok' ? 'ok' : t.status === 'unknown' ? '' : 'err']);
   if (a.kind === 'raster' && !a.displayOnly && !a.generated) b.push(['Raster', '']);
   return b;
@@ -332,7 +332,7 @@ function renderBest() {
       h('p', { class: 'muted small' }, best.reason || 'Not available.'));
   }));
 
-  const anyGenerated = best.dark?.generated || best.light?.generated;
+  const anyGenerated = best.dark?.generated || best.light?.generated || Boolean(best.reason && !best.original.displayOnly);
   const sel = $('#mode-select');
   sel.replaceChildren(...Object.entries(RECOLOR_MODES).map(([k, v]) => h('option', { value: k, selected: k === state.mode }, v)));
   $('#mode-wrap').hidden = !anyGenerated;

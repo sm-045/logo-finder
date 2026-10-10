@@ -208,14 +208,18 @@ export async function analyze(url, width, height) {
  *  - solid:     every painted pixel → colour
  *  - cut-light: near-white areas become transparent (white text inside a coloured shape)
  *  - cut-dark:  near-black areas become transparent (black details inside a coloured shape)
+ *  - only-light: keep only near-white areas (drops a coloured background tile, keeps the white artwork)
  */
 export const RECOLOR_MODES = {
   solid: 'Solid silhouette',
   'cut-light': 'Cut out white areas',
   'cut-dark': 'Cut out black areas',
+  'only-light': 'Keep only white areas (drop background tile)',
 };
 
 export function suggestMode(analysis) {
+  // Logo drawn as white artwork on a solid tile (e.g. ONGC): keep the artwork, drop the tile.
+  if (analysis?.transparency?.status === 'background' && analysis.fracWhite > 0.05) return 'only-light';
   // White in a colour logo is almost always lettering/detail inside a shape, so cutting it out is safe.
   // Black is usually standalone lettering (cutting it would erase the wordmark), so 'cut-dark' is manual only.
   if (analysis && analysis.fracWhite > 0.02 && analysis.fracColor > 0.05) return 'cut-light';
@@ -250,9 +254,9 @@ export async function buildRecoloredSvg(base, color, mode = 'solid') {
     id, filterUnits: 'userSpaceOnUse', x: 0, y: 0, width: w, height: h, 'color-interpolation-filters': 'sRGB',
   }, defs);
   let mask = 'SourceAlpha';
-  if (mode === 'cut-light' || mode === 'cut-dark') {
+  if (mode === 'cut-light' || mode === 'cut-dark' || mode === 'only-light') {
     // alpha := clamp(k·luma + c), then multiplied by the source alpha.
-    const values = mode === 'cut-light' ? alphaRow(-10, 9.5) : alphaRow(10, -0.5);
+    const values = { 'cut-light': alphaRow(-10, 9.5), 'cut-dark': alphaRow(10, -0.5), 'only-light': alphaRow(10, -8.5) }[mode];
     el('feColorMatrix', { in: 'SourceGraphic', type: 'matrix', values, result: 'lumaAlpha' }, filter);
     el('feComposite', { in: 'lumaAlpha', in2: 'SourceAlpha', operator: 'in', result: 'shape' }, filter);
     mask = 'shape';
